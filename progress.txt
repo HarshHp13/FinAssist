@@ -227,3 +227,13 @@ ralph-done-6rrj2
 - Added CAGR 3Y, Sharpe Ratio, Alpha, and Rolling Consistency as primary scoring factors.
 - Developed a rule-based explanation engine to provide transparency for MF recommendations.
 - Integrated asset-type branching in the prediction and explanation endpoints.
+
+### PR 10.5 — UI Integration
+- Created a dedicated Mutual Fund Detail Page (`/mf/[ticker]`) for deep-dive fund analytics.
+- Integrated a high-performance Rolling Returns Chart (1Y vs 3Y) using Recharts to visualize performance consistency.
+- Implemented a premium KPI dashboard on the fund detail page featuring CAGR, Alpha, Sharpe Ratio, and Expense Ratio.
+- Enhanced the main Portfolio Dashboard with asset-type-aware navigation, linking Mutual Fund tickers to their analytics pages.
+- Updated the frontend API layer to support historical feature retrieval for charting.
+
+----------
+ralph-done-j09ee

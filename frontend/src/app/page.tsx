@@ -268,7 +268,13 @@ export default function Home() {
                       <Fragment key={h.id}>
                         <tr className="group border-b border-gray-50 dark:border-zinc-800">
                           <td className="py-4">
-                            <div className="font-bold text-gray-900 dark:text-white">{h.ticker}</div>
+                            {h.asset_type === 'MF' ? (
+                              <Link href={`/mf/${h.ticker}`} className="font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                                {h.ticker}
+                              </Link>
+                            ) : (
+                              <div className="font-bold text-gray-900 dark:text-white">{h.ticker}</div>
+                            )}
                             <div className="text-[10px] text-gray-400 uppercase tracking-widest">{h.benchmark_symbol}</div>
                           </td>
                           <td className="py-4">

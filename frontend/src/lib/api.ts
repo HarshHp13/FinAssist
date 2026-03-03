@@ -95,6 +95,31 @@ export interface RiskMetrics {
     drawdown_alerts: string[];
 }
 
+export interface Feature {
+    ticker: string;
+    date: string;
+    rsi?: number;
+    macd?: number;
+    macd_signal?: number;
+    dma_50?: number;
+    dma_200?: number;
+    momentum_1m?: number;
+    momentum_3m?: number;
+    momentum_6m?: number;
+    volatility_30d?: number;
+    drawdown?: number;
+    relative_strength?: number;
+    rolling_outperformance?: number;
+    beta?: number;
+    cagr_1y?: number;
+    cagr_3y?: number;
+    cagr_5y?: number;
+    alpha?: number;
+    sharpe?: number;
+    rolling_consistency?: number;
+    expense_ratio?: number;
+}
+
 export const fetchHoldings = async (): Promise<Holding[]> => {
     const response = await fetch(`${API_URL}/holdings/`);
     if (!response.ok) throw new Error('Failed to fetch holdings');
@@ -145,5 +170,11 @@ export const fetchExplanation = async (ticker: string): Promise<Explanation> => 
 export const fetchRiskMetrics = async (): Promise<RiskMetrics> => {
     const response = await fetch(`${API_URL}/risk/metrics`);
     if (!response.ok) throw new Error('Failed to fetch risk metrics');
+    return response.json();
+};
+
+export const fetchFeatures = async (ticker: string): Promise<Feature[]> => {
+    const response = await fetch(`${API_URL}/features/${ticker}`);
+    if (!response.ok) throw new Error('Failed to fetch features');
     return response.json();
 };
