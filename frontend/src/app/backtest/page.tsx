@@ -35,26 +35,55 @@ function MetricCard({
     value,
     sub,
     positive,
+    tooltip,
+    colorOverride,
 }: {
     label: string;
     value: string;
     sub?: string;
     positive?: boolean;
+    tooltip?: string;
+    colorOverride?: string;
 }) {
     const color =
-        positive === undefined
+        colorOverride ||
+        (positive === undefined
             ? 'text-white'
             : positive
                 ? 'text-emerald-400'
-                : 'text-rose-400';
+                : 'text-rose-400');
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col gap-1 hover:bg-white/10 transition-colors">
-            <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-                {label}
-            </span>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col gap-1 hover:bg-white/10 transition-colors group relative">
+            <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-widest text-slate-400 overflow-hidden text-nowrap text-ellipsis">
+                    {label}
+                </span>
+                {tooltip && (
+                    <div className="group/tip relative flex items-center">
+                        <svg
+                            className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300 cursor-help transition-colors"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2.5}
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                        </svg>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 p-3 bg-slate-900 text-[11px] leading-relaxed text-slate-300 rounded-xl shadow-2xl border border-white/10 opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-all scale-95 group-hover/tip:scale-100 z-50">
+                            <div className="font-bold text-white mb-1 uppercase tracking-tighter text-[10px]">{label}</div>
+                            {tooltip}
+                            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-r border-b border-white/10 rotate-45"></div>
+                        </div>
+                    </div>
+                )}
+            </div>
             <span className={`text-2xl font-bold ${color}`}>{value}</span>
-            {sub && <span className="text-xs text-slate-500">{sub}</span>}
+            {sub && <span className="text-xs text-slate-500 font-medium">{sub}</span>}
         </div>
     );
 }
@@ -218,48 +247,83 @@ export default function BacktestPage() {
                                     label="Strategy CAGR"
                                     value={pct(m.cagr)}
                                     sub={`Benchmark: ${pct(m.benchmark_cagr)}`}
-                                    positive={m.cagr > 0}
+                                    positive={m.cagr >= m.benchmark_cagr}
+                                    tooltip="Compound Annual Growth Rate. The geometric average rate of return that provides a constant rate of return over the time period."
                                 />
                                 <MetricCard
-                                    label="Total Return"
-                                    value={pct(m.total_return)}
-                                    sub={`Benchmark: ${pct(m.benchmark_total_return)}`}
-                                    positive={m.total_return > 0}
+                                    label="Volatility"
+                                    value={pct(m.volatility)}
+                                    sub="Annualised Std Dev"
+                                    colorOverride={m.volatility < 0.15 ? 'text-emerald-400' : m.volatility < 0.25 ? 'text-amber-400' : 'text-rose-400'}
+                                    tooltip="The degree of variation of a trading price series over time, measured by the annualised standard deviation of returns."
                                 />
                                 <MetricCard
                                     label="Sharpe Ratio"
                                     value={fmt(m.sharpe_ratio)}
-                                    sub="Risk-adjusted (annualised)"
-                                    positive={m.sharpe_ratio > 1}
+                                    sub="Risk-adjusted return"
+                                    colorOverride={m.sharpe_ratio > 1.5 ? 'text-emerald-400' : m.sharpe_ratio >= 1.0 ? 'text-amber-400' : 'text-rose-400'}
+                                    tooltip="Measures the excess return per unit of deviation in an investment asset or a trading strategy. Higher is better."
                                 />
                                 <MetricCard
                                     label="Max Drawdown"
                                     value={pct(m.max_drawdown)}
                                     sub="Peak-to-trough decline"
-                                    positive={m.max_drawdown > -0.15}
+                                    colorOverride={m.max_drawdown > -0.15 ? 'text-emerald-400' : m.max_drawdown > -0.25 ? 'text-amber-400' : 'text-rose-400'}
+                                    tooltip="The maximum observed loss from a peak to a trough of a portfolio, before a new peak is attained."
                                 />
                                 <MetricCard
                                     label="Win Rate"
                                     value={pct(m.win_rate)}
-                                    sub="% months with positive return"
-                                    positive={m.win_rate > 0.5}
+                                    sub="Monthly profitability"
+                                    colorOverride={m.win_rate > 0.55 ? 'text-emerald-400' : m.win_rate >= 0.45 ? 'text-amber-400' : 'text-rose-400'}
+                                    tooltip="The percentage of months that yielded a positive return during the backtest period."
+                                />
+                                <MetricCard
+                                    label="Alpha"
+                                    value={pct(m.cagr - m.benchmark_cagr)}
+                                    sub="Strategy vs Benchmark"
+                                    positive={m.cagr >= m.benchmark_cagr}
+                                    tooltip="The excess return of an investment relative to the return of a benchmark index."
                                 />
                                 <MetricCard
                                     label="Final Portfolio"
                                     value={`$${result.final_value.toFixed(2)}`}
-                                    sub="Normalised from $100"
+                                    sub="Start: $100.00"
+                                    tooltip="The ending value of the strategy portfolio, assuming an initial investment of $100."
                                 />
                                 <MetricCard
                                     label="Benchmark Final"
                                     value={`$${result.benchmark_final_value.toFixed(2)}`}
                                     sub="S&P 500 (^GSPC)"
+                                    tooltip="The ending value of the benchmark index, assuming an initial investment of $100."
                                 />
-                                <MetricCard
-                                    label="Alpha"
-                                    value={pct(m.cagr - m.benchmark_cagr)}
-                                    sub="Strategy vs Benchmark CAGR"
-                                    positive={m.cagr >= m.benchmark_cagr}
-                                />
+                            </div>
+
+                            {/* Interpretation Layer */}
+                            <div className="mt-6 p-5 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex items-start gap-4">
+                                <div className="p-2 bg-blue-500/10 rounded-lg">
+                                    <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-bold text-blue-300 uppercase tracking-widest">Strategy Interpretation</h4>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        {m.cagr > m.benchmark_cagr ? (
+                                            <>Strategy CAGR (<span className="text-emerald-400 font-bold">{pct(m.cagr)}</span>) outperformed the benchmark (<span className="text-slate-400">{pct(m.benchmark_cagr)}</span>). </>
+                                        ) : (
+                                            <>Strategy CAGR (<span className="text-rose-400 font-bold">{pct(m.cagr)}</span>) underperformed the benchmark (<span className="text-slate-400">{pct(m.benchmark_cagr)}</span>). </>
+                                        )}
+                                        {m.sharpe_ratio > 1.0 ? (
+                                            <>With a Sharpe Ratio of <span className="text-emerald-400 font-bold">{fmt(m.sharpe_ratio)}</span>, the strategy offers solid risk-adjusted returns compared to typical market volatility. </>
+                                        ) : (
+                                            <>The Sharpe Ratio of <span className="text-rose-400 font-bold">{fmt(m.sharpe_ratio)}</span> suggests higher risk per unit of return during this period. </>
+                                        )}
+                                        {m.max_drawdown < -0.20 && (
+                                            <span className="text-amber-400">Caution: The maximum drawdown of {pct(m.max_drawdown)} indicates significant historical peak-to-trough risk.</span>
+                                        )}
+                                    </p>
+                                </div>
                             </div>
                         </section>
 

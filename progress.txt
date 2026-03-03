@@ -1,0 +1,202 @@
+### PR 1.1 — Docker Infrastructure
+- Initialized Next.js frontend with TailwindCSS and TypeScript.
+- Created docker-compose.yml for PostgreSQL, FastAPI, and Next.js.
+- Configured .env with necessary database and API environment variables.
+- Created Dockerfiles for both frontend and backend.
+- Implemented a database connectivity health check endpoint in the backend.
+- Added root .gitignore.
+- Note: Docker daemon was not accessible in the current environment to verify container startup, but all configuration files are in place.
+### PR 1.2 — Portfolio CRUD
+- Implemented SQLAlchemy 'Holding' model for stock portfolio data.
+- Created Pydantic schemas for request validation and response serialization.
+- Developed FastAPI endpoints for creating, reading, and deleting holdings.
+- Built a frontend API utility layer using Fetch API.
+- Designed and implemented a responsive, premium Portfolio Dashboard in Next.js.
+- Added support for adding new assets and viewing current holdings in a clean, modern UI.
+### PR 1.3 — Dummy Prediction Endpoint
+- Implemented `/predict/{ticker}` endpoint in FastAPI backend.
+- Developed momentum-based dummy prediction logic with score, recommendation (Buy/Hold/Sell), and confidence.
+- Defined Prediction schema in Pydantic for API response.
+- Enhanced frontend API layer to include `fetchPrediction` utility.
+- Updated Dashboard UI to display AI-powered scores and recommendations for each portfolio holding with color-coded badges.
+
+----------
+ralph-done-imti2
+
+### PR 2.1 — Historical Price Fetcher
+- Added `yfinance` and `pandas` to backend requirements.
+- Implemented `Price` database model and Pydantic schemas for OHLCV data.
+- Created `DataFetcher` service to download 5 years of historical data from yfinance.
+- Implemented incremental update logic to prevent duplicate data entries.
+- Added FastAPI endpoints for manual ticker sync (`/sync/history/{ticker}`), portfolio-wide sync (`/sync/portfolio`), and price data retrieval (`/prices/{ticker}`).
+- Supported both US and Indian (.NS) tickers via ticker string input.
+### PR 2.2 — Index & Macro Fetcher
+- Defined `MacroData` database model for indexing key market indicators.
+- Implemented `fetch_macro_data` method using yfinance for indices: S&P 500 (^GSPC), NIFTY 50 (^NSEI), VIX (^VIX), and US 10Y Yield (^TNX).
+- Added `sync_indices` method to bulk download 5 years of historical index data.
+- Built FastAPI endpoints `POST /sync/indices` and `GET /macro/{symbol}`.
+- Ensured incremental sync logic to avoid duplicate entries.
+### PR 2.3 — Data Integrity Validation
+- Implemented timestamp normalization to UTC for all historical data.
+- Added missing data handling (dropping incomplete rows) during fetch.
+- Enabled `UniqueConstraint` on `ticker/date` and `symbol/date` in SQLAlchemy models.
+- Enhanced logging system with detailed timestamps and record counts.
+- Added `/validate/{ticker}` endpoint to check for data gaps and integrity.
+
+----------
+ralph-done-35wqt
+### PR 3.1 — Technical Indicators
+- Created `Feature` database model to store technical and engineered indicators.
+- Implemented `FeatureEngineer` service with calculations for RSI, MACD, 50/200 DMA, Momentum (1m, 3m, 6m), 30-day Volatility, and Max Drawdown.
+- Built-in logic to prevent duplicate feature records for the same ticker/date.
+- Added FastAPI endpoints `POST /features/generate/{ticker}` and `GET /features/{ticker}`.
+- Integrated `pandas` for efficient technical indicator computation.
+### PR 3.2 — Relative Strength Features
+- Calculated stock relative strength vs major indices (^GSPC for US stocks, ^NSEI for Indian stocks).
+- Implemented 90-day rolling outperformance calculation.
+- Added rolling 252-day Beta calculation against benchmark indices.
+### PR 3.3 — Target Construction
+- Implemented forward 90-day return calculation as the primary target variable.
+- Created binary classification labels (1 for positive return, 0 for negative return).
+- Ensured absolute prevention of future leakage by properly shifting price data and masking recent dates.
+- Refactored feature saving logic to handle both technical indicators and relative strength/target fields.
+
+----------
+ralph-done-4gp7u
+### PR 4.1 — Training Pipeline
+- Added ML dependencies (`lightgbm`, `scikit-learn`, `joblib`) to `backend/requirements.txt`.
+- Implemented `MLService` in `backend/services/ml_service.py` with a full training pipeline.
+- Integrated `TimeSeriesSplit` for cross-validation on temporal financial data.
+- Configured `LGBMClassifier` with optimized initial parameters for binary classification.
+- Implemented model versioning: each training run saves unique versioned artifacts and updates a 'latest' directory.
+- Added model metadata logging including Mean AUC scores, feature lists, and training sample counts.
+- Created `POST /model/train` endpoint to trigger the training pipeline.
+### PR 4.2 — Inference Service
+- Created SQLAlchemy 'Prediction' model to persist ML inference results.
+- Enhanced 'MLService' with a `predict` method that loads the 'latest' LightGBM model.
+- Implemented real-time feature retrieval and preprocessing for inference.
+- Added logic to map model probabilities to 'Buy/Hold/Sell' recommendations and confidence scores.
+- Updated the `/predict/{ticker}` endpoint in 'main.py' to replace dummy logic with actual ML-driven predictions.
+- Ensured predictions are saved to the database for historical tracking.
+### PR 4.3 — SHAP Explainability
+- Integrated `shap` library for model interpretability.
+- Implemented `get_explanation` method in `MLService` using `TreeExplainer` to identify top features driving predictions.
+- Added logic to extract and rank both top positive and negative drivers for each prediction.
+- Exposed `GET /explain/{ticker}` endpoint in the FastAPI backend.
+- Returning SHAP base value and feature-level impact scores for transparency in AI recommendations.
+
+----------
+ralph-done-bqddh
+
+### PR 5.1 — Walk-Forward Backtest Engine
+- Implemented `BacktestService` in `backend/services/backtest_service.py`.
+- Developed a walk-forward simulation engine with monthly retraining logic using `LGBMClassifier`.
+- Implemented 3-month hold period via overlapping portfolio sleeves (staggered rebalancing).
+- Added benchmark comparison logic against major indices (^GSPC).
+- Exposed `POST /backtest/run` endpoint to trigger the backtest simulation.
+- Returns equity curve data for both strategy and benchmark for visualization.
+
+### PR 5.1 — Walk-Forward Backtest Engine
+- Implemented a monthly walk-forward backtest simulation with sliding windows.
+- Integrated monthly model retraining to prevent future leakage.
+- Developed a 3-month holding strategy using overlapping portfolio 'sleeves'.
+- Added logic to select top N assets based on ML prediction probabilities.
+- Fixed a critical bug in sleeve initialization that caused initial portfolio value drops.
+### PR 5.2 — Metrics Engine
+- Implemented key performance indicators (KPIs) for strategy evaluation.
+- Added calculations for CAGR (Compound Annual Growth Rate).
+- Integrated Sharpe Ratio for risk-adjusted return analysis.
+- Developed Max Drawdown calculation to track peak-to-trough decline.
+- Added monthly win rate and total return metrics.
+- Included automated benchmark comparison against S&P 500 (^GSPC).
+
+### PR 5.3 — Backtest UI
+- Enhanced Backtest UI with 'Monthly Rebalance History' table to display assets selected by the model.
+- Updated 'BacktestService' in backend to track and return top assets for each rebalance step.
+- Improved 'BacktestResult' frontend interface to include rebalance data.
+- Polished main dashboard UI by fixing typos and improving layout consistency.
+- Verified strategy vs benchmark comparison in both chart and metric formats.
+
+----------
+ralph-done-gczm1
+
+### PR 6.1 — Weekly Prediction Cron
+- Implemented `backend/scripts/automation.py` with `weekly_prediction_job`.
+- Configured automated data sync (prices, macro), feature recomputation, and batch inference.
+- Added comprehensive logging for job execution status and errors.
+- Created `crontab` and `entrypoint.sh` to manage scheduled tasks within the Docker container.
+- Updated `Dockerfile` to install `cron` and initialize the background scheduler.
+
+### PR 6.2 — Monthly Retraining Cron
+- Developed `monthly_retraining_job` in `automation.py`.
+- Integrated automated model retraining with versioning and metrics storage.
+- Enabled automatic "latest" model pointer update upon successful retraining.
+- Configured cron schedule (1st of every month) for autonomous model improvement.
+
+### PR 6.3 — Risk Controls
+- Created `RiskService` in `backend/services/risk_service.py` for portfolio health monitoring.
+- Implemented **Max Allocation Rule** (alert if a ticker > 20% of portfolio).
+- Developed **Sector Exposure Analysis** with warnings for over-concentration (> 40%).
+- Integrated **Correlation Matrix** calculation to identify diversification risks.
+- Added **Drawdown Alert Thresholds** to flag assets with > 15% peak-to-trough decline.
+- Exposed `GET /risk/metrics` endpoint for frontend integration.
+
+----------
+ralph-done-9fygc
+
+### PR 7.1 — Database Extension
+- Added `country` column (US | IND) to `holdings` table via manual migration.
+- Added `benchmark_symbol` column to `holdings` table to support custom benchmark mapping.
+- Verified ORM models (`backend/models.py`) and Pydantic schemas (`backend/schemas.py`) are updated to handle the new fields.
+- Ensured default values ('US' and '^GSPC') preserve compatibility with existing infrastructure.
+
+### PR 7.2 — India Data Pipeline
+- Verified ticker normalization logic (e.g., TCS → TCS.NS) and integrated into portfolio sync.
+- Ingested NIFTY 50 (^NSEI) index data with 5+ years of history.
+- Added India-specific macro markers: ^INDIAVIX (Volatility) and USDINR=X (Currency) to the sync pipeline.
+- Synchronized and validated OHLCV storage for Indian equities (e.g., TCS.NS).
+- Confirmed date alignment (UTC) for both stock prices and benchmark indices.
+
+### PR 7.3 — India Model Training
+- Refactored `MLService` to support market-specific model training and inference (`us` vs `ind`).
+- Configured India-specific target threshold (10% forward returns) in `FeatureEngineer` to better capture emerging market volatility.
+- Implemented model version tracking in both the file system and `predictions` database table.
+- Updated `/model/train` and `/predict/{ticker}` endpoints to automatically route to the correct market model based on ticker formatting (e.g., .NS suffix).
+- Verified `TimeSeriesSplit` logic handles country-specific data subsets correctly for valid cross-validation.
+
+----------
+ralph-done-vlbzm
+
+### PR 8.1 — Backend SHAP Integration
+- Verified SHAP TreeExplainer integration in MLService.
+- Confirmed feature contribution computation for both positive and negative drivers.
+- Exposed /explain/{ticker} endpoint returning top 5 drivers and base probability.
+
+### PR 8.2 — Frontend Explainability Panel
+- Added "Why?" expandable section for each portfolio holding.
+- Implemented a feature contribution dashboard with visual bar charts for SHAP values.
+- Supported separate lists for positive (green) and negative (red) drivers to highlight decision factors.
+
+### PR 8.3 — Human-Readable Summary
+- Implemented dynamic AI summary generation converting raw SHAP values into readable text.
+- Added interpretation logic to explain Buy/Hold/Sell signals based on dominant technical factors.
+- Enhanced transparency by displaying the baseline model probability alongside feature impacts.
+
+### PR 9.1 — Metric Definitions
+- Added annualized volatility to backtest metrics in the backend.
+- Implemented hoverable tooltips for all key backtest metrics (CAGR, Sharpe, Volatility, Max Drawdown, Win Rate).
+- Created a robust Tooltip sub-component within the backtest dashboard.
+
+### PR 9.2 — Risk Interpretation Layer
+- Added conditional color-coding (Green/Yellow/Red) for key performance indicators.
+- Implemented logic where Sharpe > 1.5 is strong (green), 1.0-1.5 is moderate (yellow), and < 1.0 is weak (red).
+- Applied similar logic to Max Drawdown and Win Rate for visual risk assessment.
+
+### PR 9.3 — Benchmark Comparison Text
+- Developed a "Strategy Interpretation" panel under the KPI grid.
+- Auto-generates readable text comparing Strategy CAGR and Sharpe Ratio to the benchmark.
+- Provides specific warnings when Max Drawdown exceeds threshold (20%).
+
+----------
+ralph-done-6rrj2
+

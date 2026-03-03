@@ -52,6 +52,7 @@ export interface BacktestMetrics {
     sharpe_ratio: number;
     max_drawdown: number;
     win_rate: number;
+    volatility: number;
 }
 
 export interface RebalanceStep {
