@@ -221,3 +221,9 @@ ralph-done-6rrj2
 - Implemented Rolling Consistency metric to measure outperformance frequency over a 3-year window.
 - Integrated mutual fund feature logic into 'FeatureEngineer' service while maintaining stock-specific technical indicator pipelines.
 - Updated Pydantic schemas to expose new MF features via the API.
+
+### PR 10.4 — Mutual Fund Scoring
+- Implemented rule-based scoring logic for Mutual Funds in MLService.
+- Added CAGR 3Y, Sharpe Ratio, Alpha, and Rolling Consistency as primary scoring factors.
+- Developed a rule-based explanation engine to provide transparency for MF recommendations.
+- Integrated asset-type branching in the prediction and explanation endpoints.

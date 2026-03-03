@@ -10,7 +10,7 @@ from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import roc_auc_score
 from lightgbm import LGBMClassifier
 import shap
-from models import Feature, Prediction
+from models import Feature, Prediction, Holding
 
 MODEL_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
 
@@ -30,6 +30,14 @@ class MLService:
 
     def predict(self, ticker: str):
         ticker = ticker.upper()
+        
+        # 0. Check asset type
+        holding = self.db.query(Holding).filter(Holding.ticker == ticker).first()
+        is_mf = holding and holding.asset_type == 'MF'
+
+        if is_mf:
+            return self._predict_mf(ticker)
+
         country = self._get_country_from_ticker(ticker)
         latest_dir = os.path.join(MODEL_ROOT, country, "latest")
         model_path = os.path.join(latest_dir, "lgbm_model.joblib")
@@ -107,8 +115,92 @@ class MLService:
             "model_version": version
         }
 
+    def _predict_mf(self, ticker: str):
+        # 1. Get latest features for ticker
+        query = select(Feature).where(Feature.ticker == ticker).order_by(Feature.date.desc()).limit(1)
+        latest_feature = self.db.execute(query).scalar_one_or_none()
+
+        if not latest_feature:
+            return {"error": f"No features found for {ticker}. Please generate features first."}
+
+        # 2. Rule-based scoring
+        score = 0
+        
+        # CAGR 3Y: > 15% is good (Max 30 pts)
+        cagr_3y = latest_feature.cagr_3y or 0
+        if cagr_3y > 0.18: score += 30
+        elif cagr_3y > 0.12: score += 20
+        elif cagr_3y > 0.08: score += 10
+            
+        # Sharpe Ratio: > 1.0 is good (Max 25 pts)
+        sharpe = latest_feature.sharpe or 0
+        if sharpe > 1.5: score += 25
+        elif sharpe > 1.0: score += 15
+        elif sharpe > 0.5: score += 5
+            
+        # Alpha: > 0 is good (Max 20 pts)
+        alpha = latest_feature.alpha or 0
+        if alpha > 0.05: score += 20
+        elif alpha > 0: score += 10
+            
+        # Rolling Consistency: > 80% is good (Max 15 pts)
+        consistency = latest_feature.rolling_consistency or 0
+        if consistency > 0.8: score += 15
+        elif consistency > 0.6: score += 10
+        elif consistency > 0.4: score += 5
+            
+        # Volatility Check (Penalty if too high)
+        vol = latest_feature.volatility_30d or 0
+        if vol < 0.15: score += 10
+        elif vol < 0.25: score += 5
+
+        score = min(score, 100)
+        prob_positive = score / 100.0
+
+        # 3. Map to recommendation
+        if score >= 60:
+            recommendation = "Buy"
+            confidence = prob_positive
+        elif score <= 30:
+            recommendation = "Sell"
+            confidence = 1.0 - prob_positive
+        else:
+            recommendation = "Hold"
+            confidence = 1.0 - abs(prob_positive - 0.5) * 2
+
+        # 4. Save prediction to DB
+        version = "rule-based-v1"
+        prediction_record = Prediction(
+            ticker=ticker,
+            score=float(score),
+            recommendation=recommendation,
+            confidence=float(confidence),
+            probability=prob_positive,
+            model_version=version
+        )
+        self.db.add(prediction_record)
+        self.db.commit()
+        self.db.refresh(prediction_record)
+
+        return {
+            "ticker": ticker,
+            "score": float(score),
+            "recommendation": recommendation,
+            "confidence": float(confidence),
+            "date": prediction_record.date.isoformat(),
+            "model_version": version
+        }
+
     def get_explanation(self, ticker: str):
         ticker = ticker.upper()
+        
+        # 0. Check asset type
+        holding = self.db.query(Holding).filter(Holding.ticker == ticker).first()
+        is_mf = holding and holding.asset_type == 'MF'
+
+        if is_mf:
+            return self._explain_mf(ticker)
+
         country = self._get_country_from_ticker(ticker)
         latest_dir = os.path.join(MODEL_ROOT, country, "latest")
         model_path = os.path.join(latest_dir, "lgbm_model.joblib")
@@ -181,6 +273,55 @@ class MLService:
             "top_positive": top_positive[:5],
             "top_negative": top_negative[:5],
             "base_value": float(explainer.expected_value[1] if isinstance(explainer.expected_value, (list, np.ndarray)) else explainer.expected_value)
+        }
+
+    def _explain_mf(self, ticker: str):
+        # 1. Get latest features for ticker
+        query = select(Feature).where(Feature.ticker == ticker).order_by(Feature.date.desc()).limit(1)
+        latest_feature = self.db.execute(query).scalar_one_or_none()
+
+        if not latest_feature:
+            return {"error": f"No features found for {ticker}."}
+
+        top_positive = []
+        top_negative = []
+        
+        # Map rule scores to "impact" for explanation UI
+        # This is a mock to fit the SHAP structure
+        
+        # CAGR 3Y
+        c3 = latest_feature.cagr_3y or 0
+        if c3 > 0.12:
+            top_positive.append({"feature": "CAGR 3Y", "impact": 0.3, "value": c3})
+        elif c3 < 0.05:
+            top_negative.append({"feature": "CAGR 3Y", "impact": -0.2, "value": c3})
+            
+        # Sharpe
+        s = latest_feature.sharpe or 0
+        if s > 1.0:
+            top_positive.append({"feature": "Sharpe Ratio", "impact": 0.25, "value": s})
+        elif s < 0.5:
+            top_negative.append({"feature": "Sharpe Ratio", "impact": -0.15, "value": s})
+            
+        # Alpha
+        a = latest_feature.alpha or 0
+        if a > 0:
+            top_positive.append({"feature": "Alpha vs Bench", "impact": 0.2, "value": a})
+        else:
+            top_negative.append({"feature": "Alpha vs Bench", "impact": -0.1, "value": a})
+            
+        # Consistency
+        cons = latest_feature.rolling_consistency or 0
+        if cons > 0.7:
+            top_positive.append({"feature": "Consistency", "impact": 0.15, "value": cons})
+        elif cons < 0.4:
+            top_negative.append({"feature": "Consistency", "impact": -0.15, "value": cons})
+
+        return {
+            "ticker": ticker,
+            "top_positive": top_positive,
+            "top_negative": top_negative,
+            "base_value": 0.5 # Neutral baseline
         }
 
     def train_model(self, country: str = "US"):
