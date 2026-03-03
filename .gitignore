@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+.env
+
+# Node
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+
+# Docker
+postgres_data/
+
+# Ralph
+loop-*.md
+PRD.md
+progress.txt

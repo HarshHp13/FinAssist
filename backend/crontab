@@ -1,0 +1,5 @@
+# Weekly Prediction Cron
+0 0 * * 0 cd /app && python3 scripts/automation.py weekly >> /var/log/cron.log 2>&1
+
+# Monthly Retraining Cron
+0 0 1 * * cd /app && python3 scripts/automation.py monthly >> /var/log/cron.log 2>&1
