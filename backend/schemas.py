@@ -81,6 +81,13 @@ class FeatureBase(BaseModel):
     beta: Optional[float] = None
     target_return_90d: Optional[float] = None
     target_class: Optional[int] = None
+    cagr_1y: Optional[float] = None
+    cagr_3y: Optional[float] = None
+    cagr_5y: Optional[float] = None
+    alpha: Optional[float] = None
+    sharpe: Optional[float] = None
+    rolling_consistency: Optional[float] = None
+    expense_ratio: Optional[float] = None
 
 class Feature(FeatureBase):
     id: int

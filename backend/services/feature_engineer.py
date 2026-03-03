@@ -94,10 +94,47 @@ class FeatureEngineer:
             rolling_cov = stock_returns.rolling(window=252).cov(index_returns)
             rolling_var = index_returns.rolling(window=252).var()
             df['beta'] = rolling_cov / rolling_var
+
+            # PR 10.3: Mutual Fund Specific Metrics
+            from models import Holding
+            holding = self.db.query(Holding).filter(Holding.ticker == ticker).first()
+            if holding and holding.asset_type == 'MF':
+                # CAGR
+                df['cagr_1y'] = (df['close'] / df['close'].shift(252)).pow(1/1) - 1
+                df['cagr_3y'] = (df['close'] / df['close'].shift(252*3)).pow(1/3) - 1
+                df['cagr_5y'] = (df['close'] / df['close'].shift(252*5)).pow(1/5) - 1
+                
+                # Sharpe Ratio (rolling 252d)
+                # Assuming 5% risk-free rate
+                rf = 0.05 / 252
+                rolling_returns = df['close'].pct_change()
+                excess_returns = rolling_returns - rf
+                df['sharpe'] = (excess_returns.rolling(window=252).mean() / 
+                               excess_returns.rolling(window=252).std()) * np.sqrt(252)
+                
+                # Alpha (rolling 252d)
+                # Alpha = Return_fund - [Rf + Beta * (Return_benchmark - Rf)]
+                bench_ret = df['index_close'].pct_change()
+                expected_ret = rf + df['beta'] * (bench_ret - rf)
+                df['alpha'] = (rolling_returns - expected_ret).rolling(window=252).sum() * (252/252) # Annualized alpha approx
+                
+                # Rolling Consistency (percentage of days with positive 1Y return in last 3 years)
+                pos_1y = (df['close'] / df['close'].shift(252) - 1) > 0
+                df['rolling_consistency'] = pos_1y.astype(float).rolling(window=252*3).mean()
+                
+                # Expense ratio (Dummy for now as it's not in the sync pipeline yet)
+                df['expense_ratio'] = 0.015 # 1.5% default
         else:
             df['relative_strength'] = None
             df['rolling_outperformance'] = None
             df['beta'] = None
+            df['cagr_1y'] = None
+            df['cagr_3y'] = None
+            df['cagr_5y'] = None
+            df['alpha'] = None
+            df['sharpe'] = None
+            df['rolling_consistency'] = None
+            df['expense_ratio'] = None
 
         # Forward 90-day return: (Price at T+90 / Price at T) - 1
         # Shift -90 to bring future price to current row
@@ -137,10 +174,14 @@ class FeatureEngineer:
                 existing.volatility_30d = to_float(row['volatility_30d'])
                 existing.drawdown = to_float(row['drawdown'])
                 
-                # PR 3.2
-                existing.relative_strength = to_float(row.get('relative_strength'))
-                existing.rolling_outperformance = to_float(row.get('rolling_outperformance'))
-                existing.beta = to_float(row.get('beta'))
+                # PR 10.3
+                existing.cagr_1y = to_float(row.get('cagr_1y'))
+                existing.cagr_3y = to_float(row.get('cagr_3y'))
+                existing.cagr_5y = to_float(row.get('cagr_5y'))
+                existing.alpha = to_float(row.get('alpha'))
+                existing.sharpe = to_float(row.get('sharpe'))
+                existing.rolling_consistency = to_float(row.get('rolling_consistency'))
+                existing.expense_ratio = to_float(row.get('expense_ratio'))
                 
                 # PR 3.3
                 existing.target_return_90d = to_float(row.get('target_return_90d'))
@@ -162,6 +203,16 @@ class FeatureEngineer:
                     relative_strength=to_float(row.get('relative_strength')),
                     rolling_outperformance=to_float(row.get('rolling_outperformance')),
                     beta=to_float(row.get('beta')),
+                    
+                    # PR 10.3
+                    cagr_1y=to_float(row.get('cagr_1y')),
+                    cagr_3y=to_float(row.get('cagr_3y')),
+                    cagr_5y=to_float(row.get('cagr_5y')),
+                    alpha=to_float(row.get('alpha')),
+                    sharpe=to_float(row.get('sharpe')),
+                    rolling_consistency=to_float(row.get('rolling_consistency')),
+                    expense_ratio=to_float(row.get('expense_ratio')),
+
                     target_return_90d=to_float(row.get('target_return_90d')),
                     target_class=int(row['target_class']) if not pd.isna(row.get('target_class')) else None
                 )

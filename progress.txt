@@ -213,3 +213,11 @@ ralph-done-6rrj2
 - Updated portfolio sync logic to handle Mutual Funds using AMFI codes while maintaining yfinance support for stocks and US funds.
 - Refined `sync_ticker_history` endpoint to automatically route to the correct fetcher based on asset type.
 - Verified 5+ years of historical NAV can be ingested into the `prices` table (via code logic).
+
+### PR 10.3 — Mutual Fund Feature Engineering
+- Updated 'Feature' model and database schema to include mutual fund specific metrics (CAGR, Alpha, Sharpe, Rolling Consistency, Expense Ratio).
+- Implemented monthly and yearly rolling return calculations for CAGR 1Y, 3Y, and 5Y.
+- Developed rolling Alpha calculation vs benchmark and Sharpe Ratio (risk-adjusted return) for fund performance evaluation.
+- Implemented Rolling Consistency metric to measure outperformance frequency over a 3-year window.
+- Integrated mutual fund feature logic into 'FeatureEngineer' service while maintaining stock-specific technical indicator pipelines.
+- Updated Pydantic schemas to expose new MF features via the API.

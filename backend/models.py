@@ -87,6 +87,15 @@ class Feature(Base):
     target_return_90d = Column(Float)
     target_class = Column(Integer)  # 1 if return > 0, else 0
 
+    # Mutual Fund Specific (PR 10.3)
+    cagr_1y = Column(Float)
+    cagr_3y = Column(Float)
+    cagr_5y = Column(Float)
+    alpha = Column(Float)
+    sharpe = Column(Float)
+    rolling_consistency = Column(Float)
+    expense_ratio = Column(Float)
+
     __table_args__ = (
         UniqueConstraint('ticker', 'date', name='uix_feature_ticker_date'),
     )
