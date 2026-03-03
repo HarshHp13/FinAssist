@@ -13,8 +13,21 @@ class Holding(Base):
     average_price = Column(Float, nullable=False)
     country = Column(String, default='US')
     benchmark_symbol = Column(String, default='^GSPC')
+    asset_type = Column(String, default='STOCK') # STOCK | MF
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class BenchmarkMapping(Base):
+    __tablename__ = "benchmark_mappings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_type = Column(String, index=True, nullable=False) # STOCK | MF
+    country = Column(String, index=True, nullable=False) # US | IND
+    benchmark_symbol = Column(String, nullable=False) # ^GSPC | ^NSEI
+    
+    __table_args__ = (
+        UniqueConstraint('asset_type', 'country', name='uix_asset_type_country'),
+    )
 
 class Price(Base):
     __tablename__ = "prices"

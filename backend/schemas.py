@@ -8,6 +8,7 @@ class HoldingBase(BaseModel):
     average_price: float
     country: str = "US"
     benchmark_symbol: str = "^GSPC"
+    asset_type: str = "STOCK"
 
 class HoldingCreate(HoldingBase):
     pass
@@ -18,6 +19,7 @@ class HoldingUpdate(BaseModel):
     average_price: Optional[float] = None
     country: Optional[str] = None
     benchmark_symbol: Optional[str] = None
+    asset_type: Optional[str] = None
 
 class Holding(HoldingBase):
     id: int
@@ -81,6 +83,17 @@ class FeatureBase(BaseModel):
     target_class: Optional[int] = None
 
 class Feature(FeatureBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class BenchmarkMappingBase(BaseModel):
+    asset_type: str
+    country: str
+    benchmark_symbol: str
+
+class BenchmarkMapping(BenchmarkMappingBase):
     id: int
 
     class Config:

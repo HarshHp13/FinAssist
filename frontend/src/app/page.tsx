@@ -46,6 +46,7 @@ export default function Home() {
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
   const [country, setCountry] = useState('US');
+  const [assetType, setAssetType] = useState('STOCK');
   const [predictions, setPredictions] = useState<Record<string, any>>({});
   const [explanations, setExplanations] = useState<Record<string, Explanation>>({});
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
@@ -100,6 +101,7 @@ export default function Home() {
         average_price: parseFloat(price),
         country: country,
         benchmark_symbol: benchmark,
+        asset_type: assetType,
       });
       setTicker('');
       setQuantity('');
@@ -191,6 +193,17 @@ export default function Home() {
                   >
                     <option value="US">United States (USD)</option>
                     <option value="IND">India (INR)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Asset Type</label>
+                  <select
+                    value={assetType}
+                    onChange={(e) => setAssetType(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  >
+                    <option value="STOCK">Stock / ETF</option>
+                    <option value="MF">Mutual Fund</option>
                   </select>
                 </div>
                 <button

@@ -200,3 +200,9 @@ ralph-done-vlbzm
 ----------
 ralph-done-6rrj2
 
+### PR 10.1 — Database Extension
+- Added `asset_type` column (STOCK | MF) to `holdings` table.
+- Created `benchmark_mappings` table to map asset types and countries to default benchmarks.
+- Seeded `benchmark_mappings` with default benchmarks for Stocks and Mutual Funds (US/IND).
+- Updated SQLAlchemy models and Pydantic schemas to support the new database fields.
+- Enhanced frontend UI with an asset type selector in the Portfolio Dashboard.

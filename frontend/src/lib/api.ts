@@ -7,6 +7,7 @@ export interface Holding {
     average_price: number;
     country: string;
     benchmark_symbol: string;
+    asset_type: string;
     created_at: string;
 }
 
@@ -16,6 +17,7 @@ export interface HoldingCreate {
     average_price: number;
     country: string;
     benchmark_symbol: string;
+    asset_type: string;
 }
 
 export interface Prediction {
