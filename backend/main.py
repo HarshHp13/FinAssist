@@ -107,7 +107,14 @@ def get_explanation(ticker: str, db: Session = Depends(get_db)):
 @app.post("/sync/history/{ticker}")
 def sync_ticker_history(ticker: str, db: Session = Depends(get_db)):
     fetcher = DataFetcher(db)
-    success = fetcher.fetch_historical_data(ticker.upper())
+    # Check if it's a Mutual Fund in holdings to decide fetcher method
+    holding = db.query(HoldingModel).filter(HoldingModel.ticker == ticker).first()
+    
+    if holding and holding.asset_type == 'MF' and holding.country == 'IND':
+        success = fetcher.fetch_mf_nav(ticker)
+    else:
+        success = fetcher.fetch_historical_data(ticker.upper())
+        
     if not success:
         raise HTTPException(status_code=500, detail=f"Failed to fetch data for {ticker}")
     return {"message": f"Successfully synced {ticker}"}

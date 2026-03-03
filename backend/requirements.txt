@@ -9,3 +9,5 @@ lightgbm
 scikit-learn
 joblib
 shap
+mftool
+requests

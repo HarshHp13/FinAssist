@@ -13,6 +13,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Try to import mftool, but make it optional at top level to avoid crash if not installed yet
+try:
+    from mftool import Mftool
+    MF_TOOL_AVAILABLE = True
+except ImportError:
+    MF_TOOL_AVAILABLE = False
+
 class DataFetcher:
     def __init__(self, db: Session):
         self.db = db
@@ -95,28 +102,139 @@ class DataFetcher:
             self.db.rollback()
             return False
 
+    def fetch_mf_nav(self, scheme_code: str):
+        """
+        Fetch historical NAV data for an Indian Mutual Fund using mftool (AMFI).
+        """
+        if not MF_TOOL_AVAILABLE:
+            logger.error("mftool is not installed. Cannot fetch MF NAV.")
+            return False
+
+        logger.info(f"Fetching NAV data for MF scheme {scheme_code}...")
+        try:
+            mf = Mftool()
+            # Try getting as dataframe first
+            try:
+                data = mf.get_scheme_historical_nav(scheme_code, as_dataframe=True)
+            except TypeError:
+                # Some versions might not support as_dataframe argument
+                data = mf.get_scheme_historical_nav(scheme_code)
+            
+            if data is None:
+                logger.warning(f"No NAV data found for scheme {scheme_code}")
+                return False
+
+            # If it's a dict, convert to list of records
+            if isinstance(data, dict):
+                if 'data' in data:
+                    records = data['data']
+                else:
+                    # In some versions it might just be the records
+                    records = data
+                df = pd.DataFrame(records)
+            else:
+                df = data
+
+            if df.empty:
+                logger.warning(f"No NAV data records found for scheme {scheme_code}")
+                return False
+
+            # Normalization
+            if 'date' not in df.columns:
+                df = df.reset_index() # Might be in index
+            
+            # Map column names if they are different
+            col_map = {c.lower(): c for c in df.columns}
+            if 'date' not in col_map and 'index' in col_map:
+                df = df.rename(columns={col_map['index']: 'date'})
+            if 'nav' not in col_map:
+                # Look for columns that might be NAV
+                for c in df.columns:
+                    if 'nav' in c.lower():
+                        df = df.rename(columns={c: 'nav'})
+                        break
+
+            if 'date' not in df.columns or 'nav' not in df.columns:
+                logger.error(f"Unexpected data format from mftool for {scheme_code}: {df.columns}")
+                return False
+
+            df['date'] = pd.to_datetime(df['date'], dayfirst=True)
+            
+            new_records = 0
+            # Sort by date to ensure order
+            df = df.sort_values('date')
+            
+            for index, row in df.iterrows():
+                try:
+                    # Ensure date is a pydatetime
+                    dt = row['date']
+                    if hasattr(dt, 'to_pydatetime'):
+                        dt = dt.to_pydatetime()
+                    date_val = self._normalize_date(dt)
+                except Exception as e:
+                    logger.debug(f"Row skip: Date error {e}")
+                    continue
+                
+                # Check if already exists
+                existing = self.db.query(Price).filter(
+                    Price.ticker == scheme_code,
+                    Price.date == date_val
+                ).first()
+                
+                if existing:
+                    continue
+
+                try:
+                    nav_val = float(row['nav'])
+                except (ValueError, TypeError):
+                    continue
+                
+                new_price = Price(
+                    ticker=scheme_code,
+                    date=date_val,
+                    open=nav_val,
+                    high=nav_val,
+                    low=nav_val,
+                    close=nav_val,
+                    volume=0.0
+                )
+                self.db.add(new_price)
+                new_records += 1
+            
+            self.db.commit()
+            logger.info(f"Successfully stored {new_records} new NAV records for scheme {scheme_code}")
+            return True
+        except Exception as e:
+            logger.error(f"Error fetching NAV for scheme {scheme_code}: {e}")
+            self.db.rollback()
+            return False
+
     def sync_portfolio(self):
         """
         Sync historical data for all tickers in the portfolio.
-        Handles normalization for Indian stocks.
+        Handles normalization for Indian stocks and Mutual Funds.
         """
-        holdings = self.db.query(Holding.ticker, Holding.country).distinct().all()
+        holdings = self.db.query(Holding.ticker, Holding.country, Holding.asset_type).distinct().all()
         featuresGen = FeatureEngineer(self.db)
         
         for h in holdings:
-            normalized_ticker = self._normalize_ticker(h.ticker, h.country)
-            # Update the ticker in database if it was not normalized
-            if normalized_ticker != h.ticker:
-                logger.info(f"Normalizing ticker {h.ticker} to {normalized_ticker}")
-                # Update all holdings with this ticker and country
-                self.db.query(Holding).filter(
-                    Holding.ticker == h.ticker, 
-                    Holding.country == h.country
-                ).update({"ticker": normalized_ticker})
-                self.db.commit()
-            
-            self.fetch_historical_data(normalized_ticker)
-            featuresGen.generate_features(normalized_ticker)
+            if h.asset_type == 'MF' and h.country == 'IND':
+                logger.info(f"Syncing Mutual Fund: {h.ticker}")
+                self.fetch_mf_nav(h.ticker)
+                featuresGen.generate_features(h.ticker)
+            else:
+                normalized_ticker = self._normalize_ticker(h.ticker, h.country)
+                # Update the ticker in database if it was not normalized
+                if normalized_ticker != h.ticker:
+                    logger.info(f"Normalizing ticker {h.ticker} to {normalized_ticker}")
+                    self.db.query(Holding).filter(
+                        Holding.ticker == h.ticker, 
+                        Holding.country == h.country
+                    ).update({"ticker": normalized_ticker})
+                    self.db.commit()
+                
+                self.fetch_historical_data(normalized_ticker)
+                featuresGen.generate_features(normalized_ticker)
 
     def fetch_macro_data(self, symbol: str, period: str = "5y"):
         """

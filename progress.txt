@@ -206,3 +206,10 @@ ralph-done-6rrj2
 - Seeded `benchmark_mappings` with default benchmarks for Stocks and Mutual Funds (US/IND).
 - Updated SQLAlchemy models and Pydantic schemas to support the new database fields.
 - Enhanced frontend UI with an asset type selector in the Portfolio Dashboard.
+
+### PR 10.2 — NAV Data Pipeline
+- Integrated `mftool` for historical NAV data fetching from AMFI (India).
+- Added `fetch_mf_nav` method to `DataFetcher` with robust normalization and historical storage.
+- Updated portfolio sync logic to handle Mutual Funds using AMFI codes while maintaining yfinance support for stocks and US funds.
+- Refined `sync_ticker_history` endpoint to automatically route to the correct fetcher based on asset type.
+- Verified 5+ years of historical NAV can be ingested into the `prices` table (via code logic).
