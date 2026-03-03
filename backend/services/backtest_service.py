@@ -250,6 +250,9 @@ class BacktestService:
         # Win Rate
         win_rate = (df['strat_ret'] > 0).mean()
         
+        # Volatility (Annualized)
+        volatility = df['strat_ret'].std() * np.sqrt(12) if df['strat_ret'].std() > 0 else 0
+        
         return {
             "total_return": float((end_val / start_val) - 1),
             "benchmark_total_return": float((bench_end / bench_start) - 1),
@@ -257,5 +260,6 @@ class BacktestService:
             "benchmark_cagr": float(bench_cagr),
             "sharpe_ratio": float(sharpe),
             "max_drawdown": float(max_drawdown),
-            "win_rate": float(win_rate)
+            "win_rate": float(win_rate),
+            "volatility": float(volatility)
         }
